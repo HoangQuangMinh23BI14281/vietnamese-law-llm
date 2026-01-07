@@ -1,8 +1,7 @@
-
-neo4j
-networkx
-rank_bm25
-
-neo4j
-networkx
-rank_bm25
+docling
+requests
+weaviate-client==3.26.0
+python-dotenv
+fastapi
+uvicorn
+python-multipart

@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  # 1. Weaviate
+  weaviate:
+    image: semitechnologies/weaviate:1.24.1
+    command:
+      - --host
+      - 0.0.0.0
+      - --port
+      - '8080'
+      - --scheme
+      - http
+    ports:
+      - "8080:8080"
+      - "50051:50051"
+    environment:
+      QUERY_DEFAULTS_LIMIT: 25
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
+      PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
+      # Quan trọng: Tắt module vectorizer mặc định vì ta tự embedding bên ngoài
+      DEFAULT_VECTORIZER_MODULE: 'none'
+      ENABLE_MODULES: ''
+    volumes:
+      - weaviate_data:/var/lib/weaviate
+
+  # 2. Embedding API
+  embedding-api:
+    build:
+      context: ./services/embedding-api
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./models_cache:/app/models # Mount cache để đỡ tải lại model
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [ gpu ]
+    # Nếu không có GPU, bỏ phần deploy bên trên và dùng CPU bình thường
+
+    # 3. Indexing Service
+  indexing-service:
+    build:
+      context: ./services/indexing-service
+    ports:
+      - "5001:5001"
+    environment:
+      EMBEDDING_API_URL: "http://embedding-api:5000/embed"
+      WEAVIATE_URL: "http://weaviate:8080"
+    depends_on:
+      - weaviate
+      - embedding-api
+
+volumes:
+  weaviate_data:
