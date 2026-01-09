@@ -1,95 +1,49 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from groq import Groq
 import os
-import requests
-import weaviate
 import logging
+import sys
+from fastapi import FastAPI
+from dotenv import load_dotenv
 
-# --- CONFIG ---
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("LLM-Gateway")
+# Import các lớp từ 4 tầng DDD
+# 1. Domain & Infrastructure
+from src.infrastructure.embedding_adapter import HttpEmbeddingAdapter
+from src.infrastructure.vector_db_adapter import WeaviateAdapter
+from src.infrastructure.llm_adapter import QwenLocalAdapter # <-- THÊM DÒNG NÀY
 
-app = FastAPI(title="Vietnamese Law LLM Gateway")
+# 2. Application
+from src.application.chat_service import ChatService
 
-# Env Vars
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+# 3. Presentation
+from src.presentation.router import router, set_chat_service
+
+# --- CONFIG & SETUP ---
+logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+load_dotenv()
+
+app = FastAPI(title="Vietnamese Law LLM Gateway (DDD)")
 WEAVIATE_URL = os.getenv("WEAVIATE_URL", "http://weaviate:8080")
 EMBEDDING_API_URL = os.getenv("EMBEDDING_API_URL", "http://embedding-api:5000/embed")
 
-# Init Clients
-weaviate_client = weaviate.Client(WEAVIATE_URL)
-groq_client = Groq(api_key=GROQ_API_KEY)
+# --- 2. INFRASTRUCTURE (Công cụ) ---
+embedder_adapter = HttpEmbeddingAdapter(api_url=EMBEDDING_API_URL)
+weaviate_adapter = WeaviateAdapter(url=WEAVIATE_URL, class_name="LegalDocument")
+llm_adapter = QwenLocalAdapter(model_name="Qwen/Qwen3-0.6B")
 
-class ChatRequest(BaseModel):
-    query: str
+# --- 3. APPLICATION (Logic) ---
+chat_service = ChatService(
+    embedder=embedder_adapter,
+    vector_db=weaviate_adapter,
+    llm=llm_adapter # Truyền adapter mới vào
+)
 
-# Hàm gọi Embedding API
-def get_embedding(text):
-    try:
-        res = requests.post(EMBEDDING_API_URL, json={"text": text}, timeout=10)
-        return res.json()["embedding"] if res.status_code == 200 else None
-    except Exception as e:
-        logger.error(f"Embedding Error: {e}")
-        return None
+# --- 4. PRESENTATION (Giao diện API) ---
+set_chat_service(chat_service)
+app.include_router(router)
 
-# Hàm tìm kiếm trong Weaviate
-def search_vector(query_text, limit=4):
-    vector = get_embedding(query_text)
-    if not vector: return []
-    
-    try:
-        response = (
-            weaviate_client.query
-            .get("LegalDocument", ["title", "content"])
-            .with_near_vector({"vector": vector})
-            .with_limit(limit)
-            .do()
-        )
-        return response.get('data', {}).get('Get', {}).get('LegalDocument', [])
-    except Exception as e:
-        logger.error(f"Vector Search Error: {e}")
-        return []
+@app.get("/health")
+def health_check():
+    return {"status": "ok", "service": "llm-gateway-local"}
 
-# --- MAIN CHAT ENDPOINT ---
-@app.post("/chat")
-async def chat_endpoint(req: ChatRequest):
-    logger.info(f"📩 Nhận câu hỏi: {req.query}")
-    
-    # 1. Tìm kiếm thông tin liên quan (RAG)
-    docs = search_vector(req.query)
-    
-    # 2. Xây dựng context
-    context_str = ""
-    sources = []
-    if docs:
-        context_str += "\n--- THÔNG TIN PHÁP LUẬT THAM KHẢO ---\n"
-        for i, d in enumerate(docs, 1):
-            context_str += f"[{i}] {d.get('title')}: {d.get('content')}\n"
-            sources.append(d.get('title'))
-    else:
-        context_str = "Không tìm thấy văn bản luật cụ thể trong cơ sở dữ liệu."
-
-    # 3. Tạo Prompt cho LLM
-    system_prompt = """Bạn là trợ lý pháp luật Việt Nam. 
-    Nhiệm vụ của bạn là trả lời câu hỏi dựa trên thông tin tham khảo được cung cấp.
-    Nếu thông tin không đủ, hãy nói rõ là bạn không biết chắc chắn, đừng bịa đặt điều luật."""
-    
-    user_prompt = f"Câu hỏi: {req.query}\n\n{context_str}"
-
-    # 4. Gọi Groq LLM
-    try:
-        completion = groq_client.chat.completions.create(
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            model="llama-3.3-70b-versatile",
-            temperature=0.3
-        )
-        answer = completion.choices[0].message.content
-        return {"answer": answer, "sources": list(set(sources))}
-        
-    except Exception as e:
-        logger.error(f"Groq Error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("src.main:app", host="0.0.0.0", port=8001, reload=True)

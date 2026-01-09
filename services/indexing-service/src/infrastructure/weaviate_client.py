@@ -1,55 +1,73 @@
 import weaviate
-import os
-from src.domain.models import LegalChunk
+import logging
+
+logger = logging.getLogger(__name__)
 
 class WeaviateClient:
-    def __init__(self, url=None):
-        self.url = url or os.getenv("WEAVIATE_URL", "http://weaviate:8080")
+    def __init__(self, url: str, class_name: str = "LegalDocument"):
+        self.url = url
+        self.class_name = class_name
+        
+        # Khởi tạo Client (V3)
+        logger.info(f"🔌 Connecting to Weaviate at: {self.url}")
         self.client = weaviate.Client(
             url=self.url,
-            timeout_config=(5, 15)  # Timeout connect/read
+            timeout_config=(5, 15)
         )
-        self.class_name = "LegalDocument"
-        self._ensure_schema()
+        
+        self._create_schema_if_not_exists()
 
-    def _ensure_schema(self):
-        """Tạo bảng (Class) nếu chưa tồn tại"""
+    def _create_schema_if_not_exists(self):
+        """
+        Đảm bảo Schema trong code giống với Schema thực tế trong DB
+        """
         if not self.client.schema.exists(self.class_name):
             schema = {
                 "class": self.class_name,
-                "vectorizer": "none", # Quan trọng: báo Weaviate ta tự cung cấp vector
+                "vectorizer": "none", 
                 "properties": [
                     {"name": "text", "dataType": ["text"]},
-                    {"name": "chapter", "dataType": ["text"]},
-                    {"name": "article", "dataType": ["text"]},
                     {"name": "source", "dataType": ["text"]},
+                    {"name": "chunk_id", "dataType": ["int"]},
+                    {"name": "chapter", "dataType": ["text"]}
                 ]
             }
             self.client.schema.create_class(schema)
-            print(f"📦 Created Weaviate schema: {self.class_name}")
 
-    def save_chunks(self, chunks: list[LegalChunk]):
-        """Lưu hàng loạt chunk vào DB"""
-        print(f"💾 Saving {len(chunks)} chunks to Weaviate...")
-        
-        with self.client.batch as batch:
-            batch.batch_size = 100
-            for chunk in chunks:
-                if not chunk.embedding:
-                    continue # Bỏ qua nếu lỗi embedding
+    def save_chunks(self, chunks: list, vectors: list):
+        try:
+            # Dùng Batch context manager để import nhanh
+            with self.client.batch as batch:
+                batch.batch_size = 100
                 
-                # Metadata + Text
-                properties = {
-                    "text": chunk.text,
-                    "chapter": chunk.metadata.get("chapter", ""),
-                    "article": chunk.metadata.get("article", ""),
-                    "source": chunk.metadata.get("source", "")
-                }
-                
-                # Add object kèm vector
-                batch.add_data_object(
-                    data_object=properties,
-                    class_name=self.class_name,
-                    vector=chunk.embedding  # Vector từ Embedding Service
-                )
-        print("✅ Saved to Weaviate successfully!")
+                for i, chunk in enumerate(chunks):
+                    # Xử lý lấy text và metadata an toàn
+                    text_content = chunk.text if hasattr(chunk, 'text') else chunk.get('text', '')
+                    
+                    # Lấy metadata
+                    if hasattr(chunk, 'metadata'):
+                        metadata = chunk.metadata
+                    else:
+                        metadata = chunk.get('metadata', {})
+
+                    # 👇 [UPDATE 2] QUAN TRỌNG NHẤT: Mapping dữ liệu vào DB
+                    properties = {
+                        "text": text_content,
+                        "source": metadata.get("source", metadata.get("filename", "unknown")),
+                        "chunk_id": i,
+                        "article": metadata.get("article", ""), # Lấy "Điều 34"
+                        "chapter": metadata.get("chapter", "")  # Lấy chương
+                    }
+                    
+                    # Thêm vào batch kèm vector
+                    batch.add_data_object(
+                        data_object=properties,
+                        class_name=self.class_name,
+                        vector=vectors[i]  
+                    )
+                    
+            logger.info(f"💾 Saved {len(chunks)} chunks to Weaviate.")
+            
+        except Exception as e:
+            logger.error(f"❌ Weaviate Save Error: {e}")
+            raise e

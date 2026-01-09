@@ -1,49 +1,38 @@
 import weaviate
 import json
 
-# Kết nối Weaviate
-client = weaviate.Client("http://localhost:8080")
+# Kết nối Weaviate (Nếu chạy từ máy local thì dùng localhost, nếu trong docker thì dùng tên service)
+client = weaviate.Client("http://localhost:8080") 
 
-class_name = "LegalDocument"
+CLASS_NAME = "LegalDocument" # <--- Tên class phải khớp với weaviate_client.py
 
-try:
-    # 1. Kiểm tra tổng số lượng bản ghi
-    count_result = (
-        client.query
-        .aggregate(class_name)
-        .with_meta_count()
-        .do()
-    )
-    count = count_result['data']['Aggregate'][class_name][0]['meta']['count']
-    print(f"📊 Tổng số chunk trong DB: {count}")
+def check_data():
+    try:
+        # 1. Kiểm tra Schema xem đã có Class này chưa
+        schema = client.schema.get()
+        classes = [c['class'] for c in schema['classes']]
+        print(f"📂 Các Class hiện có trong DB: {classes}")
 
-    if count > 0:
-        # 2. Lấy thử 1 bản ghi kèm Vector
-        result = (
-            client.query
-            .get(class_name, ["text", "chapter", "article"])
-            .with_additional(["vector"])  # Quan trọng: Yêu cầu trả về vector
-            .with_limit(1)
-            .do()
-        )
+        if CLASS_NAME not in classes:
+            print(f"❌ LỖI: Chưa có class '{CLASS_NAME}'. Bạn chưa chạy service hoặc code tạo schema bị lỗi.")
+            return
+
+        # 2. Đếm số lượng object
+        count = client.query.aggregate(CLASS_NAME).with_meta_count().do()
+        num_objects = count['data']['Aggregate'][CLASS_NAME][0]['meta']['count']
         
-        item = result['data']['Get'][class_name][0]
-        vector = item['_additional']['vector']
+        print(f"📊 Số lượng chunk trong '{CLASS_NAME}': {num_objects}")
         
-        print("\n✅ MẪU DỮ LIỆU ĐẦU TIÊN:")
-        print(f"- Chương: {item.get('chapter')}")
-        print(f"- Điều: {item.get('article')}")
-        print(f"- Nội dung (50 ký tự đầu): {item.get('text')[:50]}...")
-        
-        print("\n✅ KIỂM TRA VECTOR:")
-        if vector:
-            print(f"- Trạng thái: ĐÃ CÓ VECTOR")
-            print(f"- Kích thước (Dimension): {len(vector)}") # Model bạn dùng thường là 768
-            print(f"- Mẫu vector: {vector[:3]} ...")
+        if num_objects == 0:
+            print("⚠️ CẢNH BÁO: Database rỗng! Hãy upload file PDF lại.")
         else:
-            print("❌ Cảnh báo: Chunk này KHÔNG có vector!")
-    else:
-        print("⚠️ Database đang trống. Hãy upload file PDF vào Indexing Service trước.")
+            # 3. Lấy thử 1 dòng xem nội dung
+            result = client.query.get(CLASS_NAME, ["text", "source", "chunk_id"]).with_limit(1).do()
+            print("✅ Dữ liệu mẫu (1 dòng):")
+            print(json.dumps(result, indent=2, ensure_ascii=False))
 
-except Exception as e:
-    print(f"❌ Lỗi kết nối Weaviate: {e}")
+    except Exception as e:
+        print(f"❌ Không kết nối được Weaviate: {e}")
+
+if __name__ == "__main__":
+    check_data()

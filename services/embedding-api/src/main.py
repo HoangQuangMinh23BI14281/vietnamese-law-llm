@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from src.api.routes import router
+from src.presentation.routes import router
 from src.infrastructure.huggingface_adapter import HuggingFaceEmbeddingAdapter
 from src.application.use_cases import CreateEmbeddingUseCase, HealthCheckUseCase
 import logging
@@ -26,7 +26,7 @@ def get_dependencies():
 app = FastAPI(title="Vietnamese Law Embedding API (DDD)")
 
 # Override dependency trong router bằng thực thể đã khởi tạo
-from src.api.routes import get_use_cases
+from src.presentation.routes import get_use_cases
 app.dependency_overrides[get_use_cases] = get_dependencies
 
 app.include_router(router)

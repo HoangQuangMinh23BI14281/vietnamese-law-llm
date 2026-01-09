@@ -1,8 +1,12 @@
-from dataclasses import dataclass, field
-from typing import List, Optional
+from pydantic import BaseModel
+from typing import List, Optional, Dict, Any
 
-@dataclass
-class LegalChunk:
+class LegalChunk(BaseModel):
     text: str
-    metadata: dict
-    embedding: Optional[List[float]] = field(default=None)
+    metadata: Dict[str, Any]  # Chứa chapter, article, filename...
+
+class ProcessingResult(BaseModel):
+    filename: str
+    total_chunks: int
+    status: str
+    message: str

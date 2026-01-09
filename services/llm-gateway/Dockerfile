@@ -1,16 +1,16 @@
-FROM python:3.10-slim
+FROM pytorch/pytorch:2.4.0-cuda12.1-cudnn9-runtime
 
+# Thiết lập thư mục làm việc
 WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy source code
+COPY src/ ./src/
+
+# Env config
 ENV PYTHONPATH=/app
 
-RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+EXPOSE 8001
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
-
-COPY . .
-
-EXPOSE 8000
-
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8001", "--reload", "--reload-dir", "/app/src"]

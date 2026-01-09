@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # 1. Weaviate
+  # 1. Weaviate (Database Vector)
   weaviate:
     image: semitechnologies/weaviate:1.24.1
     command:
@@ -18,20 +18,19 @@ services:
       QUERY_DEFAULTS_LIMIT: 25
       AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
       PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
-      # Quan trọng: Tắt module vectorizer mặc định vì ta tự embedding bên ngoài
       DEFAULT_VECTORIZER_MODULE: 'none'
       ENABLE_MODULES: ''
     volumes:
       - weaviate_data:/var/lib/weaviate
 
-  # 2. Embedding API
+  # 2. Embedding API (Model biến text thành vector)
   embedding-api:
     build:
       context: ./services/embedding-api
     ports:
       - "5000:5000"
     volumes:
-      - ./models_cache:/app/models # Mount cache để đỡ tải lại model
+      - ./models_cache_embedding:/app/models # Cache cho model embedding
     deploy:
       resources:
         reservations:
@@ -39,9 +38,8 @@ services:
             - driver: nvidia
               count: all
               capabilities: [ gpu ]
-    # Nếu không có GPU, bỏ phần deploy bên trên và dùng CPU bình thường
 
-    # 3. Indexing Service
+  # 3. Indexing Service (Cắt file & nạp vào DB)
   indexing-service:
     build:
       context: ./services/indexing-service
@@ -53,6 +51,49 @@ services:
     depends_on:
       - weaviate
       - embedding-api
+
+  # 4. LLM Gateway (Backend chính - Chạy Qwen Local) [ĐÃ SỬA]
+  llm-gateway:
+    build:
+      context: ./services/llm-gateway
+    ports:
+      - "8001:8001"
+    environment:
+      # Không cần API Key nữa
+      WEAVIATE_URL: "http://weaviate:8080"
+      EMBEDDING_API_URL: "http://embedding-api:5000/embed"
+      # Chỉ định thư mục lưu model HuggingFace trong container
+      HF_HOME: "/app/model_cache"
+    volumes:
+      # Mount code để sửa nóng (Hot reload)
+      - ./services/llm-gateway/src:/app/src
+      # ⚠️ QUAN TRỌNG: Mount folder cache để lưu model Qwen sau khi tải
+      # Bạn cần tạo folder 'models_cache_llm' ở ngoài máy thật
+      - ./models_cache_llm:/app/model_cache
+    depends_on:
+      - weaviate
+      - embedding-api
+    # Kích hoạt GPU cho LLM Gateway
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [ gpu ]
+
+  # 5. Frontend (Giao diện Streamlit)
+  frontend:
+    build:
+      context: ./services/frontend
+    ports:
+      - "8501:8501"
+    environment:
+      LLM_GATEWAY_URL: "http://llm-gateway:8001"
+      INDEXING_SERVICE_URL: "http://indexing-service:5001"
+    depends_on:
+      - llm-gateway
+      - indexing-service
 
 volumes:
   weaviate_data:
