@@ -31,7 +31,6 @@ docker-compose.override.yml
 
 # --- AI & Data (QUAN TRỌNG: Chặn push model và DB) ---
 model_cache/
-models/
 huggingface/
 weaviate_data/
 weaviate_backup/

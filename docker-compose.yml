@@ -1,5 +1,5 @@
 services:
-  # 1. Weaviate 
+  # 1. Weaviate (Dùng Named Volume cho Database)
   weaviate:
     image: semitechnologies/weaviate:1.24.1
     command:
@@ -9,24 +9,25 @@ services:
       - '8080'
       - --scheme
       - http
-    ports:
-      - "8080:8080"
-      - "50051:50051"
+    # ports:
+    #   - "8080:8080" # Đóng cổng này nếu không cần debug trực tiếp từ trình duyệt
     environment:
       QUERY_DEFAULTS_LIMIT: 25
       AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
       PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
       DEFAULT_VECTORIZER_MODULE: 'none'
-      ENABLE_MODULES: ''
     volumes:
       - weaviate_data:/var/lib/weaviate
+    networks:
+      - rag-net
 
-  # 2. Embedding API 
+  # 2. Embedding API (Dùng Bind Mount cho Models)
   embedding-api:
     build:
       context: ./services/embedding-api
-    ports:
-      - "5000:5000"
+    # ports: - "5000:5000" # Đóng cổng để bảo mật, chỉ nội bộ gọi nhau
+    volumes:
+      - ./models:/app/models # BIND MOUNT: Model nằm trên máy bạn
     deploy:
       resources:
         reservations:
@@ -34,26 +35,30 @@ services:
             - driver: nvidia
               count: all
               capabilities: [ gpu ]
+    networks:
+      - rag-net
 
-  # 3. Indexing Service 
+  # 3. Indexing Service
   indexing-service:
     build:
       context: ./services/indexing-service
-    ports:
-      - "5001:5001"
     environment:
       EMBEDDING_API_URL: "http://embedding-api:5000/embed"
       WEAVIATE_URL: "http://weaviate:8080"
     depends_on:
       - weaviate
       - embedding-api
+    networks:
+      - rag-net
 
   # 4. LLM Gateway
   llm-gateway:
     build:
       context: ./services/llm-gateway
     ports:
-      - "8001:8001"
+      - "8001:8001" # Mở cổng để bạn có thể test API bằng Postman
+    volumes:
+      - ./models:/app/models
     environment:
       WEAVIATE_URL: "http://weaviate:8080"
       EMBEDDING_API_URL: "http://embedding-api:5000/embed"
@@ -67,8 +72,10 @@ services:
             - driver: nvidia
               count: all
               capabilities: [ gpu ]
+    networks:
+      - rag-net
 
-  # 5. Frontend 
+  # 5. Frontend
   frontend:
     build:
       context: ./services/frontend
@@ -80,6 +87,12 @@ services:
     depends_on:
       - llm-gateway
       - indexing-service
+    networks:
+      - rag-net
+
+networks:
+  rag-net:
+    driver: bridge
 
 volumes:
   weaviate_data:
