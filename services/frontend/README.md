@@ -1,59 +1,45 @@
 # Frontend Service
 
-This is the user interface for the Vietnamese Law LLM Platform, built with **Streamlit**. It provides an interactive web-based interface for users to chat with the AI and for administrators to upload new legal documents.
+The Frontend Service provides the interactive user interface for the Vietnamese Law LLM Platform, enabling legal consultation (Chat) and document management (Knowledge Base Upload).
 
-## Overview
+## Technical Overview
 
-The Frontend service connects to the backend microservices to provide two main features:
-1.  **Chat Interface (Hỏi Đáp)**: Allows users to ask questions. The app sends queries to the **LLM Gateway** and displays the response along with source references.
-2.  **Knowledge Ingestion (Nạp Kiến Thức)**: Allows users to upload PDF documents. These are sent to the **Indexing Service** to be processed and added to the vector database.
+| Item | Value |
+| :--- | :--- |
+| Framework | Streamlit |
+| Language | Python 3.10 |
+| Port | 8501 |
+| Key Libraries | streamlit, requests, pydantic |
 
 ## Architecture
 
-The project is structured using checks and explicit layers even within the Streamlit app:
--   **Presentation**: `src/presentation` - UI components and Streamlit views (`render_chat_view`, `render_upload_view`).
--   **Application**: `src/application` - Logic binding UI actions to backend calls (`ChatService`, `UploadService`).
--   **Infrastructure**: `src/infrastructure` - HTTP Clients for `llm-gateway` and `indexing-service`.
+| Layer | Path | Description |
+| :--- | :--- | :--- |
+| Domain | src/domain | Data schemas (Pydantic models) |
+| Application | src/application | ChatService, UploadService |
+| Infrastructure | src/infrastructure | GatewayAPI, IndexingAPI clients |
+| Presentation | src/presentation | Views (chat_view, upload_view) |
 
-## Prerequisites
+## Key Features
 
--   Python 3.10+
--   Docker & Docker Compose
+1. Interactive chat interface with session history
+2. Source citation display
+3. Document upload for knowledge base
+4. Visual feedback during processing
 
 ## Configuration
 
-The service connects to backend APIs via environment variables:
-
 | Variable | Description | Default |
 | :--- | :--- | :--- |
-| `LLM_GATEWAY_URL` | URL of the LLM Gateway | `http://localhost:8001` |
-| `INDEXING_SERVICE_URL` | URL of the Indexing Service | `http://localhost:5001` |
+| LLM_GATEWAY_URL | LLM Gateway Service URL | http://localhost:8001 |
+| INDEXING_SERVICE_URL | Indexing Service URL | http://localhost:5001 |
 
-## Installation & Running
-
-### Using Docker
+## Running with Docker
 
 ```bash
 docker-compose up -d frontend
 ```
 
-### Running Locally
+## API Reference
 
-1.  **Install Dependencies**:
-
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-2.  **Run Streamlit**:
-
-    ```bash
-    streamlit run src/main.py --server.port=8501
-    ```
-
-## Usage
-
-Access the web interface at `http://localhost:8501`.
-
--   **Tab 1: Nạp Kiến Thức**: Upload PDF files (e.g., Law documents).
--   **Tab 2: Hỏi Đáp**: Chat with the system regarding Vietnamese Law.
+This service is a UI application, not an API. Access via browser at http://localhost:8501.

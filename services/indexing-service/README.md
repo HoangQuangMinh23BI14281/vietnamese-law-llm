@@ -1,76 +1,53 @@
 # Indexing Service
 
-This service is a specialized background worker and API responsible for ingesting legal documents (PDFs), processing them into semantic chunks, and indexing them into the Vector Database (Weaviate).
+The Indexing Service acts as the Data Ingestion Pipeline for the platform, parsing legal documents (PDF/Word), chunking them into semantic units, and storing them in the Vector Database.
 
-## Overview
+## Technical Overview
 
-The Indexing Service implements a complete data pipeline:
-1.  **Ingestion**: Reads and parses PDF documents using `Docling`.
-2.  **Chunking**: Splits texts into logical legal units (e.g., Articles, Clauses) using `LegalChunker`.
-3.  **Embedding**: Calls the **Embedding API** to convert text chunks into vectors.
-4.  **Storage**: Saves the text chunks, metadata, and vectors into **Weaviate**.
+| Item | Value |
+| :--- | :--- |
+| Framework | FastAPI |
+| Language | Python 3.10 |
+| Port | 5001 |
+| Key Libraries | docling, weaviate-client, requests |
 
 ## Architecture
 
-The service follows a Clean Architecture / DDD pattern:
--   **Presentation**: `src/presentation` - API endpoints for file upload.
--   **Application**: `src/application` - Orchestrates the `IndexingPipeline`.
--   **Domain**: `src/domain` - Data models like `LegalChunk` and `ProcessingResult`.
--   **Infrastructure**: `src/infrastructure` - Adapters for Docling, Weaviate, and Embedding API.
+| Layer | Path | Description |
+| :--- | :--- | :--- |
+| Domain | src/domain | Data models (LegalChunk, ProcessingResult) |
+| Application | src/application | LegalChunker, IndexingPipeline |
+| Infrastructure | src/infrastructure | DoclingLoader, WeaviateClient, EmbeddingClient |
+| Presentation | src/presentation | FastAPI router for file upload |
 
-## Prerequisites
+## Key Features
 
--   Python 3.10+
--   Docker & Docker Compose
--   Access to running **Embedding API** and **Weaviate** services.
+1. PDF/Word parsing via Docling
+2. Vietnamese legal structure recognition (Part/Chapter/Section/Article)
+3. Metadata extraction (Article number, Chapter)
+4. Batch vector storage to Weaviate
+5. Background task processing
 
 ## Configuration
 
 | Variable | Description | Default |
 | :--- | :--- | :--- |
-| `WEAVIATE_URL` | URL of the Weaviate Vector DB | `http://weaviate:8080` |
-| `EMBEDDING_API_URL` | URL of the Embedding Service | `http://embedding-api:5000/embed` |
+| WEAVIATE_URL | Weaviate DB URL | http://weaviate:8080 |
+| EMBEDDING_API_URL | Embedding Service URL | http://embedding-api:5000/embed |
 
-## Installation & Running
-
-### Using Docker
+## Running with Docker
 
 ```bash
 docker-compose up -d indexing-service
 ```
 
-### Running Locally
+## API Reference
 
-1.  **Install Dependencies**:
-    *   Note: You may need system dependencies like `build-essential` or `gcc` to build `tree-sitter` required by Docling.
+### POST /index-upload
 
-    ```bash
-    pip install -r requirements.txt
-    ```
+Request: multipart/form-data with file field.
 
-2.  **Run the Server**:
-
-    ```bash
-    uvicorn src.main:app --host 0.0.0.0 --port 5001 --reload
-    ```
-
-## API Endpoints
-
-### `POST /index-upload`
-Upload a PDF document to start the indexing process.
-
-**Form Data:**
--   `file`: The PDF file to be indexed.
-
-**Response:**
+Response:
 ```json
-{
-  "filename": "luat-dat-dai.pdf",
-  "message": "Processing started in background"
-}
+{"filename": "Luat_Dat_Dai.pdf", "message": "Processing started in background"}
 ```
-
-*Note: The actual processing happens asynchronously. Check the service logs for progress.*
-
-### `GET /`
-Health check and status information.

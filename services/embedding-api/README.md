@@ -1,76 +1,54 @@
 # Embedding API Service
 
-This service provides a standalone API for generating vector embeddings from text inputs. It utilizes `sentence-transformers` to compute encodings, enabling semantic search and retrieval capabilities for the platform.
+The Embedding API Service handles vectorization for the platform, converting text input into high-dimensional vectors for semantic search and retrieval in the RAG pipeline.
 
-## Overview
+## Technical Overview
 
-The Embedding API is designed to:
-1.  **Vectorize Text**: Convert text strings into high-dimensional vector representations.
-2.  **Serve Models**: Host embedding models (e.g., HuggingFace models) efficiently.
-3.  **Support RAG**: Provide the embedding foundation for the Indexing Service and LLM Gateway.
+| Item | Value |
+| :--- | :--- |
+| Framework | FastAPI |
+| Language | Python 3.10 |
+| Port | 5000 |
+| Key Libraries | sentence-transformers, torch |
 
 ## Architecture
 
-The service implements a Clean Architecture pattern:
--   **Presentation**: `src/presentation` - FastAPI routes handling HTTP requests.
--   **Application**: `src/application` - Use cases like `CreateEmbeddingUseCase`.
--   **Domain**: `src/domain` - Interfaces and core logic.
--   **Infrastructure**: `src/infrastructure` - Implementation of embedding logic using `sentence-transformers`.
+| Layer | Path | Description |
+| :--- | :--- | :--- |
+| Domain | src/domain | Interfaces (IEmbeddingService) |
+| Application | src/application | Use cases (CreateEmbeddingUseCase) |
+| Infrastructure | src/infrastructure | HuggingFaceEmbeddingAdapter |
+| Presentation | src/presentation | FastAPI routes |
 
-## Prerequisites
+## Key Features
 
--   Python 3.10+
--   Docker & Docker Compose
--   GPU (optional but recommended for performance)
+1. Text to Vector conversion
+2. Vietnamese legal text optimized model (huyydangg/DEk21_hcmute_embedding)
+3. Automatic GPU detection (CUDA)
+4. Model caching to persistent volume
 
 ## Configuration
 
 | Variable | Description | Default |
 | :--- | :--- | :--- |
-| `HF_HOME` | Directory for storing HuggingFace models | `/app/models` |
-| `PORT` | Service port | `5000` |
+| HF_HOME | HuggingFace cache directory | /app/models |
 
-## Installation & Running
-
-### Using Docker
+## Running with Docker
 
 ```bash
 docker-compose up -d embedding-api
 ```
 
-### Running Locally
+## API Reference
 
-1.  **Install Dependencies**:
+### POST /embed
 
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-2.  **Run the Server**:
-
-    ```bash
-    uvicorn src.main:app --host 0.0.0.0 --port 5000 --reload
-    ```
-
-## API Endpoints
-
-### `POST /embed`
-Generates a vector embedding for the provided text.
-
-**Request Body:**
+Request:
 ```json
-{
-  "text": "Điều 5 Hiến pháp năm 2013 quy định về các dân tộc."
-}
+{"text": "Cong dan co quyen tu do kinh doanh..."}
 ```
 
-**Response:**
+Response:
 ```json
-{
-  "embedding": [0.12, -0.05, 0.88, ...], (vector list)
-  "model": "model-name"
-}
+{"embedding": [0.012, -0.45, ...], "dimension": 768}
 ```
-
-### `GET /` or `GET /health`
-Health check endpoints to verify service status and model readiness.
