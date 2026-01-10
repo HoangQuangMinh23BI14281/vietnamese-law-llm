@@ -22,22 +22,9 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-
-# --- Docker & Project Specific ---
-.env
-.env.*
-!.env.example
-docker-compose.override.yml
-
 # --- AI & Data (QUAN TRỌNG: Chặn push model và DB) ---
-model_cache/
-huggingface/
-weaviate_data/
-weaviate_backup/
-data/
 scripts/
-models_cache_llm/
-models_cache_embedding/
+models/*
 # --- IDE Settings (VSCode, PyCharm...) ---
 .idea/
 .vscode/
