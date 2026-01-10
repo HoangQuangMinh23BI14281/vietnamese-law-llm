@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # 1. Weaviate (Database Vector)
+  # 1. Weaviate 
   weaviate:
     image: semitechnologies/weaviate:1.24.1
     command:
@@ -23,14 +23,14 @@ services:
     volumes:
       - weaviate_data:/var/lib/weaviate
 
-  # 2. Embedding API (Model biến text thành vector)
+  # 2. Embedding API 
   embedding-api:
     build:
       context: ./services/embedding-api
     ports:
       - "5000:5000"
     volumes:
-      - ./models_cache_embedding:/app/models # Cache cho model embedding
+      - ./models_cache_embedding:/app/models
     deploy:
       resources:
         reservations:
@@ -39,7 +39,7 @@ services:
               count: all
               capabilities: [ gpu ]
 
-  # 3. Indexing Service (Cắt file & nạp vào DB)
+  # 3. Indexing Service 
   indexing-service:
     build:
       context: ./services/indexing-service
@@ -52,23 +52,18 @@ services:
       - weaviate
       - embedding-api
 
-  # 4. LLM Gateway (Backend chính - Chạy Qwen Local) [ĐÃ SỬA]
+  # 4. LLM Gateway
   llm-gateway:
     build:
       context: ./services/llm-gateway
     ports:
       - "8001:8001"
     environment:
-      # Không cần API Key nữa
       WEAVIATE_URL: "http://weaviate:8080"
       EMBEDDING_API_URL: "http://embedding-api:5000/embed"
-      # Chỉ định thư mục lưu model HuggingFace trong container
       HF_HOME: "/app/model_cache"
     volumes:
-      # Mount code để sửa nóng (Hot reload)
       - ./services/llm-gateway/src:/app/src
-      # ⚠️ QUAN TRỌNG: Mount folder cache để lưu model Qwen sau khi tải
-      # Bạn cần tạo folder 'models_cache_llm' ở ngoài máy thật
       - ./models_cache_llm:/app/model_cache
     depends_on:
       - weaviate
@@ -82,7 +77,7 @@ services:
               count: all
               capabilities: [ gpu ]
 
-  # 5. Frontend (Giao diện Streamlit)
+  # 5. Frontend 
   frontend:
     build:
       context: ./services/frontend
