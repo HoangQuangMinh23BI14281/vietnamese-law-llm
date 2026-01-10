@@ -23,13 +23,12 @@ class HuggingFaceEmbeddingAdapter(IEmbeddingService):
                 device=self.device, 
                 cache_folder=self.model_path
             )
-            logger.info("✅ Model đã tải thành công.")
+            logger.info(" Model đã tải thành công.")
         except Exception as e:
-            logger.error(f"❌ Lỗi tải model: {str(e)}")
+            logger.error(f" Lỗi tải model: {str(e)}")
             raise e
 
     def embed(self, text: str) -> list:
-        # Code cũ chuyển vào đây
         embedding = self.model.encode(text)
         return embedding.tolist()
 

@@ -22,10 +22,7 @@ def get_dependencies():
         "health": health_uc
     }
 
-# 3. KHỞI TẠO APP
-app = FastAPI(title="Vietnamese Law Embedding API (DDD)")
-
-# Override dependency trong router bằng thực thể đã khởi tạo
+app = FastAPI(title="Vietnamese Law Embedding API ")
 from src.presentation.routes import get_use_cases
 app.dependency_overrides[get_use_cases] = get_dependencies
 

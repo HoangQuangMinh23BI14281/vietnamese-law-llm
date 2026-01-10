@@ -9,7 +9,6 @@ def render_chat_view(service: ChatService):
         st.session_state.messages = []
 
     # 2. Hiển thị toàn bộ lịch sử chat cũ
-    # (Dùng container để gom nhóm tin nhắn, giúp layout ổn định hơn)
     chat_container = st.container()
     with chat_container:
         for msg in st.session_state.messages:
@@ -32,7 +31,7 @@ def render_chat_view(service: ChatService):
             with st.chat_message("assistant"):
                 # Tạo một placeholder để streaming text hoặc hiện loading
                 message_placeholder = st.empty()
-                message_placeholder.markdown("🔄 _Đang tra cứu văn bản luật..._")
+                message_placeholder.markdown(" _Đang tra cứu văn bản luật..._")
                 
                 try:
                     # Gọi Service lấy câu trả lời
@@ -45,5 +44,5 @@ def render_chat_view(service: ChatService):
                     st.session_state.messages.append({"role": "assistant", "content": response_text})
                     
                 except Exception as e:
-                    error_msg = f"⚠️ Có lỗi xảy ra: {str(e)}"
+                    error_msg = f" Có lỗi xảy ra: {str(e)}"
                     message_placeholder.error(error_msg)

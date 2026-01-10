@@ -22,8 +22,8 @@ LLM_GATEWAY_URL = os.getenv("LLM_GATEWAY_URL", "http://localhost:8001")
 INDEXING_SERVICE_URL = os.getenv("INDEXING_SERVICE_URL", "http://localhost:5001")
 
 # --- SETUP PAGE ---
-st.set_page_config(page_title="Vietnam Legal AI", page_icon="⚖️", layout="wide")
-st.title("⚖️ Hệ thống Tư vấn Pháp luật Thông minh")
+st.set_page_config(page_title="Vietnam Legal AI", layout="wide")
+st.title(" Hệ thống Tư vấn Pháp luật Thông minh")
 
 # --- DEPENDENCY INJECTION (Lắp ráp) ---
 # 1. Tạo Clients
@@ -35,7 +35,7 @@ upload_service = UploadService(indexing_api)
 chat_service = ChatService(gateway_api)
 
 # --- RENDER UI ---
-tab1, tab2 = st.tabs(["📚 Nạp Kiến Thức", "🤖 Hỏi Đáp"])
+tab1, tab2 = st.tabs([" Nạp Kiến Thức", " Hỏi Đáp"])
 
 with tab1:
     render_upload_view(upload_service)

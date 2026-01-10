@@ -35,8 +35,8 @@ from src.presentation.router import router as api_router, set_pipeline
 EMBEDDING_API_URL = os.getenv("EMBEDDING_API_URL", "http://embedding-api:5000/embed")
 WEAVIATE_URL = os.getenv("WEAVIATE_URL", "http://weaviate:8080")
 
-logger.info(f"🔌 Connecting to Embedding API at: {EMBEDDING_API_URL}")
-logger.info(f"🔌 Connecting to Weaviate at: {WEAVIATE_URL}")
+logger.info(f" Connecting to Embedding API at: {EMBEDDING_API_URL}")
+logger.info(f" Connecting to Weaviate at: {WEAVIATE_URL}")
 
 # Tạo các object kết nối
 docling_loader = DoclingLoader()

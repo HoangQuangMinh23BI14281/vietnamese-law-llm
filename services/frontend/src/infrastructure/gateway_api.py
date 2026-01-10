@@ -11,6 +11,6 @@ class GatewayAPI:
             if res.status_code == 200:
                 data = res.json()
                 return ChatResponse(answer=data.get("answer"), sources=data.get("sources", []))
-            return ChatResponse(answer=f"⚠️ Lỗi Server: {res.status_code}", sources=[])
+            return ChatResponse(answer=f" Lỗi Server: {res.status_code}", sources=[])
         except Exception as e:
-            return ChatResponse(answer=f"❌ Không thể kết nối AI: {str(e)}", sources=[])
+            return ChatResponse(answer=f" Không thể kết nối AI: {str(e)}", sources=[])

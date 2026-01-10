@@ -10,7 +10,6 @@ router = APIRouter()
 chat_service_instance: ChatService = None
 
 def set_chat_service(service: ChatService):
-    """Hàm này giúp Main.py 'bơm' logic vào router"""
     global chat_service_instance
     chat_service_instance = service
 

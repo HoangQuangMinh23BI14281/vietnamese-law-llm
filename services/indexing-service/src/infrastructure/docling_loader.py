@@ -13,10 +13,10 @@ class DoclingLoader:
         Đọc file PDF/Word và trả về Markdown text
         """
         try:
-            logger.info(f"📄 Đang đọc file bằng Docling: {file_path}")
+            logger.info(f" Đang đọc file bằng Docling: {file_path}")
             conv_result = self.converter.convert(file_path)
             # Xuất ra markdown
             return conv_result.document.export_to_markdown()
         except Exception as e:
-            logger.error(f"❌ Docling lỗi đọc file: {e}")
+            logger.error(f" Docling lỗi đọc file: {e}")
             return ""

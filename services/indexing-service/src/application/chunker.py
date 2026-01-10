@@ -24,7 +24,7 @@ class LegalChunker:
         articles_data = self._parse_structure(cleaned_text)
         
         if not articles_data:
-            logger.warning("⚠️ Fallback split triggered.")
+            logger.warning(" Fallback split triggered.")
             return self._fallback_split(cleaned_text, source_name)
 
         final_chunks = []

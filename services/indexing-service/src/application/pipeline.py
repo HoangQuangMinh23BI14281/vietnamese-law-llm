@@ -13,7 +13,7 @@ class IndexingPipeline:
 
     def run_pipeline(self, file_path: str):
         filename = os.path.basename(file_path)
-        logger.info(f"🚀 Bắt đầu xử lý file: {filename}")
+        logger.info(f" Bắt đầu xử lý file: {filename}")
 
         try:
             # 1. Load
@@ -37,7 +37,7 @@ class IndexingPipeline:
                 if 'article' in meta and meta['article']:
                      # Log sample 1 lần thôi để debug
                      if len(valid_chunks) == 0: 
-                        logger.info(f"🧐 Sample Metadata: {meta}")
+                        logger.info(f" Sample Metadata: {meta}")
 
                 try:
                     vec = self.embedder.get_embedding(text_content)
@@ -46,16 +46,16 @@ class IndexingPipeline:
                         vectors.append(vec)
                         valid_chunks.append(chunk)
                 except Exception as e_embed:
-                    logger.warning(f"⚠️ Lỗi embedding chunk text '{text_content[:30]}...': {e_embed}")
+                    logger.warning(f" Lỗi embedding chunk text '{text_content[:30]}...': {e_embed}")
                     continue # Bỏ qua chunk lỗi, chạy tiếp chunk sau
 
             # 4. Save Batch
             if valid_chunks:
                 # Hàm save_chunks của DB adapter cần xử lý việc map metadata từ chunk vào Weaviate properties
                 self.db.save_chunks(valid_chunks, vectors)
-                logger.info(f"💾 Đã lưu thành công {len(valid_chunks)} chunks có metadata vào Weaviate.")
+                logger.info(f" Đã lưu thành công {len(valid_chunks)} chunks có metadata vào Weaviate.")
             else:
-                logger.warning("⚠️ Không có chunk nào hợp lệ để lưu.")
+                logger.warning(" Không có chunk nào hợp lệ để lưu.")
 
             return ProcessingResult(
                 filename=filename,
@@ -65,7 +65,7 @@ class IndexingPipeline:
             )
 
         except Exception as e:
-            logger.error(f"❌ Lỗi Pipeline Fatal: {str(e)}", exc_info=True)
+            logger.error(f" Lỗi Pipeline Fatal: {str(e)}", exc_info=True)
             return ProcessingResult(
                 filename=filename,
                 status="error",

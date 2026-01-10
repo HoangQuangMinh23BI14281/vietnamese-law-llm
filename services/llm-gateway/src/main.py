@@ -4,11 +4,10 @@ import sys
 from fastapi import FastAPI
 from dotenv import load_dotenv
 
-# Import các lớp từ 4 tầng DDD
 # 1. Domain & Infrastructure
 from src.infrastructure.embedding_adapter import HttpEmbeddingAdapter
 from src.infrastructure.vector_db_adapter import WeaviateAdapter
-from src.infrastructure.llm_adapter import QwenLocalAdapter # <-- THÊM DÒNG NÀY
+from src.infrastructure.llm_adapter import QwenLocalAdapter #
 
 # 2. Application
 from src.application.chat_service import ChatService
@@ -20,7 +19,7 @@ from src.presentation.router import router, set_chat_service
 logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 load_dotenv()
 
-app = FastAPI(title="Vietnamese Law LLM Gateway (DDD)")
+app = FastAPI(title="Vietnamese Law LLM Gateway")
 WEAVIATE_URL = os.getenv("WEAVIATE_URL", "http://weaviate:8080")
 EMBEDDING_API_URL = os.getenv("EMBEDDING_API_URL", "http://embedding-api:5000/embed")
 

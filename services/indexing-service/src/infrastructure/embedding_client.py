@@ -25,8 +25,8 @@ class EmbeddingClient:
             
         except requests.exceptions.RequestException as e:
             # Dùng logger.error thay vì print để dễ debug trong Docker
-            logger.error(f"❌ Error calling Embedding API at {self.base_url}: {e}")
+            logger.error(f"Error calling Embedding API at {self.base_url}: {e}")
             return []
         except KeyError:
-            logger.error(f"❌ API response format invalid (missing 'embedding' key)")
+            logger.error(f"API response format invalid (missing 'embedding' key)")
             return []

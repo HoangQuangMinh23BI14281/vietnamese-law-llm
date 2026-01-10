@@ -3,7 +3,7 @@ from typing import List, Optional, Dict, Any
 
 class LegalChunk(BaseModel):
     text: str
-    metadata: Dict[str, Any]  # Chứa chapter, article, filename...
+    metadata: Dict[str, Any]
 
 class ProcessingResult(BaseModel):
     filename: str

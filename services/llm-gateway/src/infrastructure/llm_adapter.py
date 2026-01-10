@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 class QwenLocalAdapter(LLMPort):
     def __init__(self, model_name: str = "Qwen/Qwen3-0.6B"):
-        logger.info(f"⏳ Đang tải model {model_name}...")
+        logger.info(f" Đang tải model {model_name}...")
         self.model_name = model_name
         
         self.tokenizer = AutoTokenizer.from_pretrained(
@@ -23,7 +23,7 @@ class QwenLocalAdapter(LLMPort):
             device_map="auto",
             trust_remote_code=True
         )
-        logger.info(f"✅ Đã tải xong model Qwen 3")
+        logger.info(f"Đã tải xong model")
 
     def generate_answer(self, system_prompt: str, user_prompt: str) -> str:
         try:
@@ -59,7 +59,7 @@ class QwenLocalAdapter(LLMPort):
             think_match = re.search(r'<think>(.*?)</think>', raw_content, re.DOTALL)
             if think_match:
                 thinking_process = think_match.group(1).strip()
-                logger.info(f"🧠 [Model Thinking]: {thinking_process[:200]}...") # Chỉ log 200 ký tự đầu cho gọn
+                logger.info(f" [Model Thinking]: {thinking_process[:200]}...") # Chỉ log 200 ký tự đầu cho gọn
             
             # 2. Xóa phần <think> để lấy câu trả lời sạch
             clean_content = re.sub(r'<think>.*?</think>', '', raw_content, flags=re.DOTALL).strip()
@@ -67,5 +67,5 @@ class QwenLocalAdapter(LLMPort):
             return clean_content
 
         except Exception as e:
-            logger.error(f"❌ Qwen 3 Error: {e}")
+            logger.error(f" Qwen 3 Error: {e}")
             return "Xin lỗi, hệ thống đang gặp sự cố xử lý."

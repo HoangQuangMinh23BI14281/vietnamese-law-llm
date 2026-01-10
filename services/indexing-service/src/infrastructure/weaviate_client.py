@@ -9,7 +9,7 @@ class WeaviateClient:
         self.class_name = class_name
         
         # Khởi tạo Client (V3)
-        logger.info(f"🔌 Connecting to Weaviate at: {self.url}")
+        logger.info(f" Connecting to Weaviate at: {self.url}")
         self.client = weaviate.Client(
             url=self.url,
             timeout_config=(5, 15)
@@ -50,7 +50,6 @@ class WeaviateClient:
                     else:
                         metadata = chunk.get('metadata', {})
 
-                    # 👇 [UPDATE 2] QUAN TRỌNG NHẤT: Mapping dữ liệu vào DB
                     properties = {
                         "text": text_content,
                         "source": metadata.get("source", metadata.get("filename", "unknown")),
@@ -66,8 +65,8 @@ class WeaviateClient:
                         vector=vectors[i]  
                     )
                     
-            logger.info(f"💾 Saved {len(chunks)} chunks to Weaviate.")
+            logger.info(f" Saved {len(chunks)} chunks to Weaviate.")
             
         except Exception as e:
-            logger.error(f"❌ Weaviate Save Error: {e}")
+            logger.error(f" Weaviate Save Error: {e}")
             raise e

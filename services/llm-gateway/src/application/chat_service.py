@@ -30,7 +30,7 @@ class ChatService:
             # CASE A: Tìm chính xác
             article_num = article_match.group(1)
             target = f"Điều {article_num}"
-            logger.info(f"🎯 Phát hiện ý định tìm cụ thể: {target}")
+            logger.info(f" Phát hiện ý định tìm cụ thể: {target}")
             
             docs = self.vector_db.search(
                 query_text=target,
@@ -45,7 +45,7 @@ class ChatService:
             search_mode = "strict"
         else:
             # CASE B: Tìm ngữ nghĩa
-            logger.info("🌍 Tìm kiếm ngữ nghĩa rộng (Broad Search)...")
+            logger.info(" Tìm kiếm ngữ nghĩa rộng (Broad Search)...")
             docs = self.vector_db.search(
                 query_text=req.query,
                 vector=self.embedder.get_embedding(req.query),
@@ -58,10 +58,10 @@ class ChatService:
         
         # --- BƯỚC 3: CORRECTIVE ACTIONS (SỬA SAI) ---
         if not is_relevant:
-            logger.warning(f"⚠️ [Correction] Kết quả từ chế độ '{search_mode}' KHÔNG TỐT.")
+            logger.warning(f" [Correction] Kết quả từ chế độ '{search_mode}' KHÔNG TỐT.")
             
             if search_mode == "strict":
-                logger.info("🔄 Chuyển sang Broad Search (Bỏ filter Điều)...")
+                logger.info(" Chuyển sang Broad Search (Bỏ filter Điều)...")
                 docs = self.vector_db.search(
                     query_text=req.query,
                     vector=self.embedder.get_embedding(req.query),
@@ -69,10 +69,10 @@ class ChatService:
                     alpha=0.5
                 )
                 if not self._grade_documents(req.query, docs, "semantic"):
-                    logger.info("🔄 Broad Search vẫn chưa tốt -> Kích hoạt HyDE...")
+                    logger.info(" Broad Search vẫn chưa tốt -> Kích hoạt HyDE...")
                     docs = self._run_hyde_search(req.query)
             else:
-                logger.info("🔄 Semantic Search thất bại -> Kích hoạt HyDE...")
+                logger.info(" Semantic Search thất bại -> Kích hoạt HyDE...")
                 docs = self._run_hyde_search(req.query)
 
         # --- BƯỚC 4: FINAL GENERATION ---
@@ -107,14 +107,14 @@ class ChatService:
         
         try:
             grade = self.llm.generate_answer(sys_prompt, user_prompt).strip().upper()
-            logger.info(f"👨‍⚖️ Grader ({mode}): {grade}")
+            logger.info(f" Grader ({mode}): {grade}")
             return "YES" in grade
         except:
             return True
 
     def _run_hyde_search(self, query: str):
         hyde_doc = self._generate_hyde_doc(query)
-        logger.info(f"👻 HyDE Document generated: {hyde_doc[:50]}...")
+        logger.info(f" HyDE Document generated: {hyde_doc[:50]}...")
         hyde_vector = self.embedder.get_embedding(hyde_doc)
         return self.vector_db.search(
             query_text=hyde_doc,
@@ -137,7 +137,6 @@ class ChatService:
         context_str = "\n".join([f"- {d.title}: {d.content}" for d in docs])
         sources = list(set([d.title for d in docs]))
         
-        # ⚠️ CHIẾN THUẬT MỚI: ÉP TIẾNG VIỆT NGAY TRONG LỆNH NGƯỜI DÙNG
         sys_prompt = "Bạn là trợ lý luật sư Việt Nam. Nhiệm vụ duy nhất của bạn là trả lời bằng Tiếng Việt."
         
         # Nhét yêu cầu Tiếng Việt xuống cuối cùng (Recency Bias - Model nhớ cái cuối tốt hơn)
