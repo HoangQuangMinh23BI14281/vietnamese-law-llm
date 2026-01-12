@@ -1,14 +1,44 @@
-FROM python:3.9-slim
+# =============================================================================
+# EMBEDDING API - Sentence Transformer Service
+# Port: 5000 | GPU: Required | Multi-Stage Build
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# STAGE 1: Builder - Cài đặt dependencies
+# -----------------------------------------------------------------------------
+FROM pytorch/pytorch:2.4.0-cuda12.1-cudnn9-runtime AS builder
+
+WORKDIR /build
+
+# Cài đặt dependencies vào virtual environment
+COPY requirements.txt .
+RUN python -m venv /opt/venv && \
+    /opt/venv/bin/pip install --no-cache-dir --upgrade pip && \
+    /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
+
+# -----------------------------------------------------------------------------
+# STAGE 2: Runtime - Image production gọn nhẹ
+# -----------------------------------------------------------------------------
+FROM pytorch/pytorch:2.4.0-cuda12.1-cudnn9-runtime AS runtime
+
+# Tối ưu Python runtime
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
+    HF_HOME=/app/models \
+    PATH="/opt/venv/bin:$PATH"
 
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy virtual environment từ builder
+COPY --from=builder /opt/venv /opt/venv
 
+# Tạo thư mục cho model cache (mount từ docker-compose)
 RUN mkdir -p /app/models
 
+# Copy source code
 COPY src/ ./src/
 
-ENV PYTHONPATH=/app
+EXPOSE 5000
 
 CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "5000"]

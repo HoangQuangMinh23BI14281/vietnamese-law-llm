@@ -1,0 +1,41 @@
+# Version Control
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Environment Variables (Security)
+.env
+.env.*
+
+# Project Specific (Large files handled by volumes)
+models/
+model_cache/
+models_cache_llm/
+models_cache_embedding/
+weaviate_data/
+data/
+uploads/
+
+# Docker
+docker-compose.yml
+docker-compose.override.yml
+Dockerfile
+.dockerignore
+
+# IDEs
+.idea/
+.vscode/
+
+# Logs
+*.log

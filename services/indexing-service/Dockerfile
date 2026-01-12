@@ -1,22 +1,55 @@
-FROM python:3.10-slim
+# =============================================================================
+# INDEXING SERVICE - PDF Processing & Vector Storage
+# Port: 5001 | GPU: Not required | Multi-Stage Build
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# STAGE 1: Builder - Cài đặt dependencies
+# -----------------------------------------------------------------------------
+FROM python:3.10-slim AS builder
+
+WORKDIR /build
+
+# Cài system dependencies cho build
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Cài đặt Python dependencies vào virtual environment
+COPY requirements.txt .
+RUN python -m venv /opt/venv && \
+    /opt/venv/bin/pip install --no-cache-dir --upgrade pip && \
+    /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
+
+# -----------------------------------------------------------------------------
+# STAGE 2: Runtime - Image production gọn nhẹ
+# -----------------------------------------------------------------------------
+FROM python:3.10-slim AS runtime
+
+# Tối ưu Python runtime
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
+    PATH="/opt/venv/bin:$PATH"
 
 WORKDIR /app
 
-# Cài đặt thư viện hệ thống
-RUN apt-get update && apt-get install -y \
-    build-essential \
+# Cài runtime dependencies (chỉ những gì cần chạy, không cần build-essential)
+RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1 \
     libglib2.0-0 \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy virtual environment từ builder
+COPY --from=builder /opt/venv /opt/venv
 
-# Tạo thư mục chứa data
+# Tạo thư mục uploads
 RUN mkdir -p /app/data/uploads
 
+# Copy source code
 COPY src/ ./src/
 
-ENV PYTHONPATH=/app
+EXPOSE 5001
 
 CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "5001"]

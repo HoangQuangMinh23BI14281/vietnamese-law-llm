@@ -20,6 +20,7 @@ services:
       PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
       DEFAULT_VECTORIZER_MODULE: 'none'
       ENABLE_MODULES: ''
+      CLUSTER_HOSTNAME: 'node1'
     volumes:
       - weaviate_data:/var/lib/weaviate
 
@@ -29,6 +30,8 @@ services:
       context: ./services/embedding-api
     ports:
       - "5000:5000"
+    environment:
+      HF_HOME: "/app/models"
     volumes:
       - ./models_cache_embedding:/app/models
     deploy:
