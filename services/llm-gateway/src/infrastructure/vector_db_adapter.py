@@ -10,7 +10,7 @@ class WeaviateAdapter(VectorDBPort):
     def __init__(self, url: str, class_name: str = "LegalDocument"):
         self.url = url
         self.class_name = class_name
-        logger.info(f" Connecting to Weaviate at: {self.url}")
+        logger.info(f"Connecting to Weaviate at: {self.url}")
         self.client = weaviate.Client(url)
 
     def search(
@@ -23,16 +23,15 @@ class WeaviateAdapter(VectorDBPort):
         where_filter: Optional[Dict[str, Any]] = None
     ):
         if not vector:
-            logger.warning(" Vector rỗng, bỏ qua search.")
+            logger.warning("Vector rỗng, bỏ qua search.")
             return []
         
         if properties is None:
             properties = ["text", "source", "article^3", "chapter"] 
 
         try:
-            logger.info(f" Querying Weaviate: '{query_text}' (Alpha={alpha}) | Filter: {where_filter is not None}")
+            logger.info(f"Querying Weaviate: '{query_text}' (Alpha={alpha}) | Filter: {where_filter is not None}")
             
-            # Khởi tạo query object
             query_obj = (
                 self.client.query
                 .get(self.class_name, ["text", "source", "article", "chapter"])
@@ -47,7 +46,6 @@ class WeaviateAdapter(VectorDBPort):
             if where_filter:
                 query_obj = query_obj.with_where(where_filter)
 
-            # Thực thi query
             response = (
                 query_obj
                 .with_additional(["score"])
@@ -57,8 +55,7 @@ class WeaviateAdapter(VectorDBPort):
             
             raw_data = response.get('data', {}).get('Get', {}).get(self.class_name, [])
             
-            # LOG DEBUG
-            logger.info(f" Found {len(raw_data)} raw results.")
+            logger.info(f"Found {len(raw_data)} raw results.")
             for i, item in enumerate(raw_data):
                 raw_score = item.get('_additional', {}).get('score', 0)
                 try:
@@ -67,7 +64,7 @@ class WeaviateAdapter(VectorDBPort):
                     score_val = 0.0
                 
                 art = item.get('article', 'N/A')
-                logger.info(f"   [{i}] Score: {score_val:.4f} | Article: {art} | Source: {item.get('source')}")
+                logger.info(f"[{i}] Score: {score_val:.4f} | Article: {art} | Source: {item.get('source')}")
 
             results = []
             for item in raw_data:
@@ -85,5 +82,5 @@ class WeaviateAdapter(VectorDBPort):
             return results
 
         except Exception as e:
-            logger.error(f" Weaviate Error: {e}")
+            logger.error(f"Weaviate Error: {e}")
             return []
