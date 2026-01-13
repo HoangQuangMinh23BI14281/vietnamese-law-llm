@@ -27,6 +27,7 @@ jobs:
         service: [llm-gateway, embedding-api, indexing-service, frontend]
 
     steps:
+      - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@main
         with:
           tool-cache: true
