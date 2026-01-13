@@ -7,10 +7,13 @@ from src.domain.ports import LLMPort
 
 logger = logging.getLogger(__name__)
 
+import os
+
 class QwenLocalAdapter(LLMPort):
-    def __init__(self, model_name: str = "Qwen/Qwen3-0.6B"):
-        logger.info(f" Đang tải model {model_name}...")
-        self.model_name = model_name
+    def __init__(self, model_name: str = None):
+        # Lấy từ ENV nếu không truyền vào
+        self.model_name = model_name or os.getenv("MODEL_NAME", "Qwen/Qwen3-0.6B")
+        logger.info(f" Đang tải model {self.model_name}...")
         
         self.tokenizer = AutoTokenizer.from_pretrained(
             self.model_name,

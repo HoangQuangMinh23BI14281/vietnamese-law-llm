@@ -12,21 +12,40 @@ class EmbeddingClient:
 
     def get_embedding(self, text: str) -> list[float]:
         try:
-            # Gửi request
             response = requests.post(
                 self.base_url, 
                 json={"text": text},
                 timeout=30
             )
             response.raise_for_status()
-            
-            # Trả về kết quả
             return response.json()["embedding"]
             
         except requests.exceptions.RequestException as e:
-            # Dùng logger.error thay vì print để dễ debug trong Docker
             logger.error(f"Error calling Embedding API at {self.base_url}: {e}")
             return []
         except KeyError:
-            logger.error(f"API response format invalid (missing 'embedding' key)")
+            logger.error(f"API response format invalid")
+            return []
+
+    def get_embeddings_batch(self, texts: list[str]) -> list[list[float]]:
+        """Gọi API batch để lấy nhiều vector cùng lúc"""
+        try:
+            # Endpoint giả định là /embed/batch (cần cấu hình URL phù hợp, 
+            # hoặc tự động detect nếu base_url kết thúc bằng /embed)
+            
+            # Xử lý URL: chuyển http://.../embed -> http://.../embed/batch
+            batch_url = self.base_url.rstrip("/") + "/batch"
+            
+            response = requests.post(
+                batch_url, 
+                json={"texts": texts},
+                timeout=60 # Batch lâu hơn đơn lẻ nên tăng timeout
+            )
+            response.raise_for_status()
+            
+            data = response.json()
+            return data.get("embeddings", [])
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error calling Batch Embedding API: {e}")
             return []

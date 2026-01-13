@@ -26,7 +26,7 @@ EMBEDDING_API_URL = os.getenv("EMBEDDING_API_URL", "http://embedding-api:5000/em
 # --- 2. INFRASTRUCTURE (Công cụ) ---
 embedder_adapter = HttpEmbeddingAdapter(api_url=EMBEDDING_API_URL)
 weaviate_adapter = WeaviateAdapter(url=WEAVIATE_URL, class_name="LegalDocument")
-llm_adapter = QwenLocalAdapter(model_name="Qwen/Qwen3-0.6B")
+llm_adapter = QwenLocalAdapter() # Model name lấy từ ENV hoặc default
 
 # --- 3. APPLICATION (Logic) ---
 chat_service = ChatService(

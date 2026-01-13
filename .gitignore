@@ -36,7 +36,8 @@ huggingface/
 weaviate_data/
 weaviate_backup/
 data/
-scripts/
+scripts/*
+!scripts/clean_db.py
 models_cache_llm/
 models_cache_embedding/
 # --- IDE Settings (VSCode, PyCharm...) ---

@@ -8,7 +8,8 @@ logger = logging.getLogger(__name__)
 
 class HuggingFaceEmbeddingAdapter(IEmbeddingService):
     def __init__(self):
-        self.model_name = "huyydangg/DEk21_hcmute_embedding"
+        # Lấy tên model từ biến môi trường, default nếu không có
+        self.model_name = os.getenv("MODEL_NAME", "huyydangg/DEk21_hcmute_embedding")
         self.model_path = "./models"
         
         # Tự động chọn thiết bị
@@ -31,6 +32,15 @@ class HuggingFaceEmbeddingAdapter(IEmbeddingService):
     def embed(self, text: str) -> list:
         embedding = self.model.encode(text)
         return embedding.tolist()
+
+    def embed_batch(self, texts: list[str]) -> list[list[float]]:
+        """Xử lý batch nhiều text cùng lúc để tăng tốc độ"""
+        if not texts:
+            return []
+        
+        # encode trả về numpy array -> convert to list
+        embeddings = self.model.encode(texts, batch_size=32, show_progress_bar=False)
+        return embeddings.tolist()
 
     def get_info(self) -> dict:
         return {

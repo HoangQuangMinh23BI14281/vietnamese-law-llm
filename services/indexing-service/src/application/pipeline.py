@@ -25,29 +25,35 @@ class IndexingPipeline:
             chunks = self.chunker.chunk(raw_text, filename)
             logger.info(f"✂️ Đã cắt thành {len(chunks)} chunks.")
 
-            # 3. Embed & Validate Metadata
+            # 3. Embed & Validate Metadata (BATCH PROCESSING)
             vectors = []
             valid_chunks = []
             
+            # Chuẩn bị list texts
+            texts_to_embed = []
+            chunks_to_embed = []
+            
             for chunk in chunks:
                 text_content = chunk.text if hasattr(chunk, 'text') else chunk.get('text', '')
-                
-                # [UPDATE] Kiểm tra nhanh xem Metadata có đúng form không (Debug)
-                meta = chunk.metadata if hasattr(chunk, 'metadata') else chunk.get('metadata', {})
-                if 'article' in meta and meta['article']:
-                     # Log sample 1 lần thôi để debug
-                     if len(valid_chunks) == 0: 
-                        logger.info(f" Sample Metadata: {meta}")
+                if text_content and len(text_content.strip()) > 0:
+                    texts_to_embed.append(text_content)
+                    chunks_to_embed.append(chunk)
 
+            if texts_to_embed:
+                logger.info(f"🚀 Đang gửi {len(texts_to_embed)} chunks tới Embedding Service (Batch Mode)...")
                 try:
-                    vec = self.embedder.get_embedding(text_content)
+                    # Gọi Batch API 1 lần duy nhất
+                    batch_vectors = self.embedder.get_embeddings_batch(texts_to_embed)
                     
-                    if vec and len(vec) > 0:
-                        vectors.append(vec)
-                        valid_chunks.append(chunk)
-                except Exception as e_embed:
-                    logger.warning(f" Lỗi embedding chunk text '{text_content[:30]}...': {e_embed}")
-                    continue # Bỏ qua chunk lỗi, chạy tiếp chunk sau
+                    if len(batch_vectors) == len(chunks_to_embed):
+                        vectors = batch_vectors
+                        valid_chunks = chunks_to_embed
+                        logger.info(f"✅ Đã nhận được {len(vectors)} vectors.")
+                    else:
+                        logger.error(f"❌ Lỗi: Số lượng vector trả về ({len(batch_vectors)}) không khớp số lượng chunk ({len(chunks_to_embed)})")
+                
+                except Exception as e:
+                    logger.error(f"❌ Lỗi Batch Embedding: {e}")
 
             # 4. Save Batch
             if valid_chunks:

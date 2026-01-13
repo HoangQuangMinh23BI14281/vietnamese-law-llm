@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from src.presentation.routes import router
 from src.infrastructure.huggingface_adapter import HuggingFaceEmbeddingAdapter
-from src.application.use_cases import CreateEmbeddingUseCase, HealthCheckUseCase
+from src.application.use_cases import CreateEmbeddingUseCase, HealthCheckUseCase, BatchEmbeddingUseCase
 import logging
 
 # Cấu hình log
@@ -14,12 +14,14 @@ embedding_service = HuggingFaceEmbeddingAdapter()
 # 2. KHỞI TẠO USE CASES
 create_uc = CreateEmbeddingUseCase(embedding_service)
 health_uc = HealthCheckUseCase(embedding_service)
+batch_uc = BatchEmbeddingUseCase(embedding_service)
 
 # Dependency Container đơn giản
 def get_dependencies():
     return {
         "create": create_uc,
-        "health": health_uc
+        "health": health_uc,
+        "batch": batch_uc
     }
 
 app = FastAPI(title="Vietnamese Law Embedding API ")
