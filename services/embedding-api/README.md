@@ -29,7 +29,7 @@ graph LR
     UseCase --> Adapter
     Adapter -->|Tokenize & Encode| Model
     Model -->|Vector Array| Adapter
-    Adapter -->|List[float]| Router
+    Adapter -->|List #91;float#93;| Router
     Router -->|JSON| Sender
 ```
 

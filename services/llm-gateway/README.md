@@ -16,26 +16,26 @@ graph TD
     User[User / Frontend] -->|POST /chat| API[FastAPI Router]
     API --> Service[Chat Service]
     
-    subgraph Retrieval Strategy
+    subgraph "Retrieval Strategy"
         Service -->|Parallel| SemSearch[Semantic Search]
-        Service -->|Parallel| StrictSearch[Strict Search (Article Based)]
+        Service -->|Parallel| StrictSearch["Strict Search (Article Based)"]
         SemSearch --> Embed[Embedding API]
         StrictSearch --> Embed
         Embed --> Weaviate[(Weaviate Vector DB)]
         Weaviate --> Docs[Retrieved Documents]
     end
     
-    subgraph Relevance Check
+    subgraph "Relevance Check"
         Docs --> Grader[LLM Grader]
         Grader -- Relevant --> Generator
-        Grader -- Not Relevant --> HyDE[HyDE Strategy]
+        Grader -- "Not Relevant" --> HyDE[HyDE Strategy]
         HyDE --> Embed
         HyDE --> Weaviate
         Weaviate --> Generator
     end
     
-    subgraph Generation
-        Generator[LLM Generator (Qwen)] --> Response[Final Answer]
+    subgraph "Generation"
+        Generator["LLM Generator (Qwen)"] --> Response[Final Answer]
     end
     
     Response --> User
