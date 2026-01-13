@@ -7,7 +7,7 @@ class GatewayAPI:
 
     def chat(self, query: str) -> ChatResponse:
         try:
-            res = requests.post(f"{self.base_url}/chat", json={"query": query}, timeout=60)
+            res = requests.post(f"{self.base_url}/chat", json={"query": query}, timeout=300)
             if res.status_code == 200:
                 data = res.json()
                 return ChatResponse(answer=data.get("answer"), sources=data.get("sources", []))

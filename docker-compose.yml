@@ -34,6 +34,7 @@ services:
       HF_HOME: "/app/models"
       MODEL_NAME: ${EMBEDDING_MODEL_NAME:-huyydangg/DEk21_hcmute_embedding}
     volumes:
+      - ./services/embedding-api/src:/app/src
       - ./models_cache_embedding:/app/models
     deploy:
       resources:
@@ -52,6 +53,9 @@ services:
     environment:
       EMBEDDING_API_URL: "http://embedding-api:5000/embed"
       WEAVIATE_URL: "http://weaviate:8080"
+    volumes:
+      - ./services/indexing-service/src:/app/src
+      - ./models_cache_hf:/root/.cache/huggingface
     depends_on:
       - weaviate
       - embedding-api
@@ -91,6 +95,8 @@ services:
     environment:
       LLM_GATEWAY_URL: "http://llm-gateway:8001"
       INDEXING_SERVICE_URL: "http://indexing-service:5001"
+    volumes:
+      - ./services/frontend/src:/app/src
     depends_on:
       - llm-gateway
       - indexing-service

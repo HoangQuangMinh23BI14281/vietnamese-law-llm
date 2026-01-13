@@ -2,6 +2,8 @@
 from typing import List, Optional
 import logging
 import re
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from src.domain.models import ChatQuery, ChatResponse, RetrievedDocument
 from src.domain.ports import EmbeddingPort, VectorDBPort, LLMPort
 
@@ -13,28 +15,105 @@ class ChatService:
         self.vector_db = vector_db
         self.llm = llm
         
+        self.executor = ThreadPoolExecutor(max_workers=5) # Thread pool cho blocking calls
+
         self.article_pattern = re.compile(
             r"\b(?:điều|khoản)\s+(\d+)\b(?!\s*(?:năm|tháng|ngày|giờ|phút|triệu|tỷ|nghìn|trăm|đồng|vnd|usd))", 
             re.IGNORECASE
         )
+        
 
-    def process_question(self, req: ChatQuery) -> ChatResponse:
-        logger.info(f"🚀 [CRAG Start] Câu hỏi: {req.query}")
+
+    async def process_question(self, req: ChatQuery) -> ChatResponse:
+        logger.info(f" [Async Service] Câu hỏi: {req.query}")
         
-        # --- BƯỚC 1: ROUTING & INITIAL RETRIEVAL ---
-        article_match = self.article_pattern.search(req.query)
-        docs = []
-        search_mode = "semantic"
+
+
+        # --- BƯỚC 1: PARALLEL RETRIEVAL ---
+        docs = await self._parallel_retrieval(req.query)
+
+        # --- BƯỚC 2: GRADING (CHẤM ĐIỂM) ---
+        is_relevant = False
+        if docs:
+            is_relevant = await self._grade_documents(req.query, docs)
         
+        # --- BƯỚC 3: CORRECTIVE ACTIONS (SỬA SAI) & FALLBACK ---
+        if not is_relevant:
+            logger.warning(f" [Correction] Documents not relevant.")
+            
+            # HyDE (Nếu không phải tin tức, thử HyDE trước)
+            logger.info(" Kích hoạt HyDE...")
+            hyde_docs = await self._run_hyde_search(req.query)
+            
+            if await self._grade_documents(req.query, hyde_docs):
+                docs = hyde_docs
+            else:
+                # Nếu HyDE cũng fail -> Trả về không tìm thấy
+                logger.info(" HyDE failed -> No results found.")
+                return ChatResponse(answer="Xin lỗi, tôi không tìm thấy thông tin phù hợp trong cơ sở dữ liệu luật.", sources=[])
+
+        # --- BƯỚC 4: FINAL GENERATION ---
+        return await self._generate_final_response(req.query, docs)
+
+    # ==========================================
+    # INTERNAL ASYNC HELPERS
+    # ==========================================
+
+
+
+    async def _parallel_retrieval(self, query: str) -> List[RetrievedDocument]:
+        LOOP = asyncio.get_running_loop()
+        article_match = self.article_pattern.search(query)
+        
+        tasks = []
+
+        # 1. Semantic Search (Luôn chạy)
+        tasks.append(self._run_semantic_search(query))
+
+        # 2. Strict Search (Chảy nếu có Điều khoản)
         if article_match:
-            # CASE A: Tìm chính xác
             article_num = article_match.group(1)
             target = f"Điều {article_num}"
-            logger.info(f" Phát hiện ý định tìm cụ thể: {target}")
+            logger.info(f" [Parallel] Detected Article: {target}")
+            tasks.append(self._run_strict_search(target))
+
+        # Chạy song song
+        results = await asyncio.gather(*tasks)
+        
+        # Gộp kết quả
+        all_docs = []
+        for r in results:
+            all_docs.extend(r)
             
-            docs = self.vector_db.search(
+        # Deduplicate (Loại trùng lặp dựa trên title + content)
+        unique_docs = {}
+        for d in all_docs:
+            key = f"{d.title}_{len(d.content)}"
+            if key not in unique_docs:
+                unique_docs[key] = d
+                
+        return list(unique_docs.values())
+
+    async def _run_semantic_search(self, query: str):
+        LOOP = asyncio.get_running_loop()
+        # Non-blocking embedding
+        vector = await LOOP.run_in_executor(self.executor, self.embedder.get_embedding, query)
+        
+        # Non-blocking vector search
+        return await LOOP.run_in_executor(
+            self.executor, 
+            lambda: self.vector_db.search(query_text=query, vector=vector, limit=8, alpha=0.5)
+        )
+
+    async def _run_strict_search(self, target: str):
+        LOOP = asyncio.get_running_loop()
+        vector = await LOOP.run_in_executor(self.executor, self.embedder.get_embedding, target)
+        
+        return await LOOP.run_in_executor(
+            self.executor,
+            lambda: self.vector_db.search(
                 query_text=target,
-                vector=self.embedder.get_embedding(target),
+                vector=vector,
                 limit=5,
                 where_filter={
                     "path": ["article"],
@@ -42,118 +121,53 @@ class ChatService:
                     "valueString": target
                 }
             )
-            search_mode = "strict"
-        else:
-            # CASE B: Tìm ngữ nghĩa
-            logger.info(" Tìm kiếm ngữ nghĩa rộng (Broad Search)...")
-            docs = self.vector_db.search(
-                query_text=req.query,
-                vector=self.embedder.get_embedding(req.query),
-                limit=8,
-                alpha=0.5
-            )
-
-        # --- BƯỚC 2: GRADING (CHẤM ĐIỂM) ---
-        is_relevant = self._grade_documents(req.query, docs, search_mode)
-        
-        # --- BƯỚC 3: CORRECTIVE ACTIONS (SỬA SAI) ---
-        if not is_relevant:
-            logger.warning(f" [Correction] Kết quả từ chế độ '{search_mode}' KHÔNG TỐT.")
-            
-            if search_mode == "strict":
-                logger.info(" Chuyển sang Broad Search (Bỏ filter Điều)...")
-                docs = self.vector_db.search(
-                    query_text=req.query,
-                    vector=self.embedder.get_embedding(req.query),
-                    limit=8,
-                    alpha=0.5
-                )
-                if not self._grade_documents(req.query, docs, "semantic"):
-                    logger.info(" Broad Search vẫn chưa tốt -> Kích hoạt HyDE...")
-                    docs = self._run_hyde_search(req.query)
-            else:
-                logger.info(" Semantic Search thất bại -> Kích hoạt HyDE...")
-                docs = self._run_hyde_search(req.query)
-
-        # --- BƯỚC 4: FINAL GENERATION ---
-        return self._generate_final_response(req.query, docs)
-
-    # ==========================================
-    # CÁC HÀM PHỤ TRỢ (HELPER METHODS)
-    # ==========================================
-
-    def _grade_documents(self, query: str, docs: List, mode: str) -> bool:
-        if not docs: 
-            return False
-            
-        top_doc = docs[0].content[:500]
-        
-        # Prompt chấm điểm (Không cần sửa nhiều, chỉ cần YES/NO)
-        sys_prompt = "You are a Relevance Grader. Output only YES or NO."
-        
-        prompt_logic = ""
-        if mode == "strict":
-            prompt_logic = "If the query is about time duration (e.g., '5 years') but the document is a Law Article 'Article 5', output NO."
-        
-        user_prompt = f"""
-        Query: "{query}"
-        Document: "{top_doc}..."
-        
-        {prompt_logic}
-        
-        Does the document help answer the query? 
-        Answer exclusively with: YES or NO.
-        """
-        
-        try:
-            grade = self.llm.generate_answer(sys_prompt, user_prompt).strip().upper()
-            logger.info(f" Grader ({mode}): {grade}")
-            return "YES" in grade
-        except:
-            return True
-
-    def _run_hyde_search(self, query: str):
-        hyde_doc = self._generate_hyde_doc(query)
-        logger.info(f" HyDE Document generated: {hyde_doc[:50]}...")
-        hyde_vector = self.embedder.get_embedding(hyde_doc)
-        return self.vector_db.search(
-            query_text=hyde_doc,
-            vector=hyde_vector,
-            limit=10,
-            alpha=0.7
         )
 
-    def _generate_hyde_doc(self, query: str) -> str:
-        # Prompt giả định
-        sys_prompt = "Bạn là chuyên gia luật Việt Nam."
-        user_prompt = f"Viết một đoạn văn ngắn giả định (bằng tiếng Việt) có chứa câu trả lời cho câu hỏi: {query}"
-        return self.llm.generate_answer(sys_prompt, user_prompt)
 
-    def _generate_final_response(self, query: str, docs: List) -> ChatResponse:
+
+    async def _grade_documents(self, query: str, docs: List[RetrievedDocument]) -> bool:
+        if not docs: return False
+        LOOP = asyncio.get_running_loop()
+        
+        top_doc = docs[0].content[:800] # Tăng context lên chút
+        sys_prompt = "You are a stricter Relevance Grader. Check if the document contains the answer to the query."
+        user_prompt = (
+            f"Query: {query}\n"
+            f"Doc: {top_doc}\n"
+            "Does the document contain enough information to answer the query? "
+            "If it only contains related keywords but no answer, reply NO. "
+            "Reply strictly YES or NO."
+        )
+        
+        grade = await LOOP.run_in_executor(self.executor, self.llm.generate_answer, sys_prompt, user_prompt)
+        logger.info(f" Grader: {grade.strip()}")
+        return "YES" in grade.upper()
+
+    async def _run_hyde_search(self, query: str):
+        LOOP = asyncio.get_running_loop()
+        
+        # 1. Gen HyDE Doc
+        sys_prompt = "Bạn là chuyên gia luật."
+        user_prompt = f"Viết đoạn văn ngắn về: {query}"
+        hyde_doc = await LOOP.run_in_executor(self.executor, self.llm.generate_answer, sys_prompt, user_prompt)
+        
+        # 2. Vector Search HyDE
+        vector = await LOOP.run_in_executor(self.executor, self.embedder.get_embedding, hyde_doc)
+        return await LOOP.run_in_executor(
+            self.executor, 
+            lambda: self.vector_db.search(query_text=hyde_doc, vector=vector, limit=8, alpha=0.7)
+        )
+
+    async def _generate_final_response(self, query: str, docs: List) -> ChatResponse:
         if not docs:
-            return ChatResponse(answer="Xin lỗi, tôi không tìm thấy thông tin pháp lý liên quan trong cơ sở dữ liệu.", sources=[])
-            
-        # Tạo context string gọn gàng hơn
+             return ChatResponse(answer="Xin lỗi, tôi không tìm thấy thông tin phù hợp.", sources=[])
+
+        LOOP = asyncio.get_running_loop()
         context_str = "\n".join([f"- {d.title}: {d.content}" for d in docs])
         sources = list(set([d.title for d in docs]))
+
+        sys_prompt = "Bạn là trợ lý luật sư Việt Nam. Trả lời bằng Tiếng Việt."
+        user_prompt = f"TÀI LIỆU:\n{context_str}\n\nCÂU HỎI: {query}\n\nTrả lời chi tiết dựa trên tài liệu:"
         
-        sys_prompt = "Bạn là trợ lý luật sư Việt Nam. Nhiệm vụ duy nhất của bạn là trả lời bằng Tiếng Việt."
-        
-        # Nhét yêu cầu Tiếng Việt xuống cuối cùng (Recency Bias - Model nhớ cái cuối tốt hơn)
-        user_prompt = f"""
-        TÀI LIỆU THAM KHẢO:
-        {context_str}
-        
-        CÂU HỎI: "{query}"
-        
-        YÊU CẦU NGHIÊM NGẶT:
-        1. Dựa vào tài liệu trên để trả lời.
-        2. Sau khi suy nghĩ xong, CÂU TRẢ LỜI CUỐI CÙNG PHẢI VIẾT BẰNG TIẾNG VIỆT.
-        3. Không được viết tiếng Anh ở kết quả cuối cùng.
-        
-        HÃY TRẢ LỜI BẰNG TIẾNG VIỆT NGAY DƯỚI ĐÂY:
-        """
-        
-        # Gọi model
-        answer = self.llm.generate_answer(sys_prompt, user_prompt)
+        answer = await LOOP.run_in_executor(self.executor, self.llm.generate_answer, sys_prompt, user_prompt)
         return ChatResponse(answer=answer, sources=sources)

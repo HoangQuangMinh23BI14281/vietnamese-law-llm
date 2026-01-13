@@ -20,7 +20,7 @@ async def chat_endpoint(req: ChatQuery):
         
     try:
         # Presentation chỉ chuyển lời gọi vào Application Layer
-        response = chat_service_instance.process_question(req)
+        response = await chat_service_instance.process_question(req)
         return response
     except Exception as e:
         logging.error(f"System Error: {str(e)}")

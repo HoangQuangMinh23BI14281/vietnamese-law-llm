@@ -1,39 +1,26 @@
 # =============================================================================
 # LLM GATEWAY - RAG Query Service with Qwen/LLM
-# Port: 8001 | GPU: Required | Multi-Stage Build
+# Port: 8001 | GPU: Required | Optimized Single-Stage
 # =============================================================================
 
-# -----------------------------------------------------------------------------
-# STAGE 1: Builder - Cài đặt dependencies
-# -----------------------------------------------------------------------------
-FROM pytorch/pytorch:2.4.0-cuda12.1-cudnn9-runtime AS builder
-
-WORKDIR /build
-
-# Cài đặt dependencies vào virtual environment
-COPY requirements.txt .
-RUN python -m venv /opt/venv && \
-    /opt/venv/bin/pip install --no-cache-dir --upgrade pip && \
-    /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
-
-# -----------------------------------------------------------------------------
-# STAGE 2: Runtime - Image production gọn nhẹ
-# -----------------------------------------------------------------------------
-FROM pytorch/pytorch:2.4.0-cuda12.1-cudnn9-runtime AS runtime
+# Sử dụng base image PyTorch (đã có sẵn PyTorch + CUDA)
+FROM pytorch/pytorch:2.4.0-cuda12.1-cudnn9-runtime
 
 # Tối ưu Python runtime
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app \
-    HF_HOME=/app/model_cache \
-    PATH="/opt/venv/bin:$PATH"
+    HF_HOME=/app/model_cache
 
 WORKDIR /app
 
-# Copy virtual environment từ builder
-COPY --from=builder /opt/venv /opt/venv
+# Cài đặt dependencies TRỰC TIẾP vào system python
+# Việc này tránh cài đặt lại PyTorch vào trong venv, giúp giảm ~5GB+ dung lượng image
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-# Tạo thư mục cho model cache (mount từ docker-compose)
+# Tạo thư mục cho model cache
 RUN mkdir -p /app/model_cache
 
 # Copy source code

@@ -38,8 +38,10 @@ weaviate_backup/
 data/
 scripts/*
 !scripts/clean_db.py
+!scripts/check_ddg.py
 models_cache_llm/
 models_cache_embedding/
+models_cache_hf/
 # --- IDE Settings (VSCode, PyCharm...) ---
 .idea/
 .vscode/

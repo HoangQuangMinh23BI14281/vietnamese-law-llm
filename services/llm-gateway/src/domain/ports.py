@@ -19,3 +19,4 @@ class LLMPort(ABC):
     @abstractmethod
     def generate_answer(self, system_prompt: str, user_prompt: str) -> str:
         pass
+

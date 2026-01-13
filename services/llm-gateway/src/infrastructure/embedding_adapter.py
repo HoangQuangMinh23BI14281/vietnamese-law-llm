@@ -11,7 +11,7 @@ class HttpEmbeddingAdapter(EmbeddingPort):
 
     def get_embedding(self, text: str) -> List[float]:
         try:
-            res = requests.post(self.api_url, json={"text": text}, timeout=10)
+            res = requests.post(self.api_url, json={"text": text}, timeout=60)
             if res.status_code == 200:
                 return res.json()["embedding"]
             logger.error(f"Embedding API failed: {res.status_code}")
