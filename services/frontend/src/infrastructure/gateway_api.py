@@ -14,3 +14,10 @@ class GatewayAPI:
             return ChatResponse(answer=f" Lỗi Server: {res.status_code}", sources=[])
         except Exception as e:
             return ChatResponse(answer=f" Không thể kết nối AI: {str(e)}", sources=[])
+
+    def check_health(self) -> bool:
+        try:
+            res = requests.get(f"{self.base_url}/health", timeout=2)
+            return res.status_code == 200 and res.json().get("status") == "ready"
+        except:
+            return False

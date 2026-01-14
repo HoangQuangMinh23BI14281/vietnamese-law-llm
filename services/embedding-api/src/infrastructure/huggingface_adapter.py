@@ -15,8 +15,8 @@ class HuggingFaceEmbeddingAdapter(IEmbeddingService):
         # Tự động chọn thiết bị
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         
-        logger.info(f"--- ĐANG KHỞI TẠO MODEL: {self.model_name} ---")
-        logger.info(f"--- THIẾT BỊ SỬ DỤNG: {self.device.upper()} ---")
+        logger.info(f"ĐANG KHỞI TẠO MODEL: {self.model_name}")
+        logger.info(f"THIẾT BỊ SỬ DỤNG: {self.device.upper()}")
 
         try:
             self.model = SentenceTransformer(

@@ -2,6 +2,7 @@
 import logging
 import torch
 import re
+import threading
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from src.domain.ports import LLMPort
 
@@ -12,22 +13,40 @@ import os
 class QwenLocalAdapter(LLMPort):
     def __init__(self, model_name: str = None):
         self.model_name = model_name or os.getenv("MODEL_NAME", "Qwen/Qwen3-0.6B")
-        logger.info(f"Đang tải model {self.model_name}...")
+        self._is_ready = False
+        self.tokenizer = None
+        self.model = None
         
-        self.tokenizer = AutoTokenizer.from_pretrained(
-            self.model_name,
-            trust_remote_code=True 
-        )
-        
-        self.model = AutoModelForCausalLM.from_pretrained(
-            self.model_name,
-            torch_dtype=torch.float16,
-            device_map="auto",
-            trust_remote_code=True
-        )
-        logger.info(f"Đã tải xong model")
+        # Tải trong background để không block API chính
+        threading.Thread(target=self._load_model, daemon=True).start()
+
+    def _load_model(self):
+        try:
+            logger.info(f"Đang tải model {self.model_name}...")
+            
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                self.model_name,
+                trust_remote_code=True 
+            )
+            
+            self.model = AutoModelForCausalLM.from_pretrained(
+                self.model_name,
+                torch_dtype=torch.float16,
+                device_map="auto",
+                trust_remote_code=True
+            )
+            self._is_ready = True
+            logger.info(f"Đã tải xong model {self.model_name}")
+        except Exception as e:
+            logger.error(f"Lỗi tải model Qwen: {e}")
+
+    @property
+    def is_ready(self) -> bool:
+        return self._is_ready
 
     def generate_answer(self, system_prompt: str, user_prompt: str) -> str:
+        if not self._is_ready:
+            return "Hệ thống đang tải mô hình ngôn ngữ, vui lòng đợi trong giây lát..."
         try:
             messages = [
                 {"role": "system", "content": system_prompt},

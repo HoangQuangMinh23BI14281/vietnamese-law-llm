@@ -1,6 +1,7 @@
 docling
+deepsearch-toolkit
 requests
-weaviate-client==3.26.0
+weaviate-client<4.0.0
 python-dotenv
 fastapi
 uvicorn

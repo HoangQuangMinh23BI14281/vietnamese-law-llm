@@ -15,3 +15,6 @@ class ChatService:
                 formatted_text += f"- {src}\n"
         
         return formatted_text
+
+    def is_service_ready(self) -> bool:
+        return self.api.check_health()

@@ -13,8 +13,14 @@ def set_pipeline(pipeline: IndexingPipeline):
     global pipeline_instance
     pipeline_instance = pipeline
 
+@router.get("/health")
+async def health_check():
+    # Kiểm tra xem pipeline đã sẵn sàng chưa (nó phụ thuộc vào embedding service)
+    # Trong thực tế có thể gọi ping tới embedding-api
+    return {"status": "ready", "service": "indexing-service"}
+
 @router.post("/index-upload")
-async def index_document(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
+async def index_document(file: UploadFile = File(...)):
     # 1. Lưu file tạm
     os.makedirs("data/uploads", exist_ok=True)
     file_path = f"data/uploads/{file.filename}"
@@ -22,9 +28,9 @@ async def index_document(background_tasks: BackgroundTasks, file: UploadFile = F
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     
-    # 2. Chạy Pipeline dưới background (để trả lời UI ngay lập tức)
+    # 2. Chạy Pipeline ĐỒNG BỘ (theo yêu cầu báo timing chính xác)
     if pipeline_instance:
-        background_tasks.add_task(pipeline_instance.run_pipeline, file_path)
-        return {"filename": file.filename, "message": "Processing started in background"}
+        result = pipeline_instance.run_pipeline(file_path)
+        return result
     else:
         return {"error": "Pipeline not initialized"}

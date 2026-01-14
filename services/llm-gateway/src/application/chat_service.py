@@ -21,6 +21,11 @@ class ChatService:
         )
 
     async def process_question(self, req: ChatQuery) -> ChatResponse:
+        if not self.llm.is_ready:
+            return ChatResponse(
+                answer="Hệ thống đang tải mô hình ngôn ngữ (Qwen), vui lòng đợi trong giây lát...",
+                sources=[]
+            )
         logger.info(f"Câu hỏi: {req.query}")
 
         docs = await self._parallel_retrieval(req.query)

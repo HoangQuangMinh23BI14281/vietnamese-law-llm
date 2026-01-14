@@ -13,6 +13,18 @@ def set_chat_service(service: ChatService):
     global chat_service_instance
     chat_service_instance = service
 
+@router.get("/health")
+async def health_check():
+    if not chat_service_instance:
+        return {"status": "loading", "message": "Service not initialized"}
+    
+    is_ready = chat_service_instance.llm.is_ready
+    return {
+        "status": "ready" if is_ready else "loading",
+        "service": "llm-gateway",
+        "model_ready": is_ready
+    }
+
 @router.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(req: ChatQuery):
     if not chat_service_instance:

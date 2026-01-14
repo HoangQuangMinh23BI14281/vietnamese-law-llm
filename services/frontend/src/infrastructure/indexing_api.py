@@ -11,7 +11,15 @@ class IndexingAPI:
             res = requests.post(f"{self.base_url}/index-upload", files=files, timeout=600)
             
             if res.status_code == 200:
-                return UploadStatus(success=True, message="Xử lý thành công!", filename=filename)
+                data = res.json()
+                return UploadStatus(success=True, message=data.get("message", "Xử lý thành công!"), filename=filename)
             return UploadStatus(success=False, message=f"Lỗi Server: {res.text}", filename=filename)
         except Exception as e:
             return UploadStatus(success=False, message=f"Lỗi kết nối: {str(e)}", filename=filename)
+
+    def check_health(self) -> bool:
+        try:
+            res = requests.get(f"{self.base_url}/health", timeout=2)
+            return res.status_code == 200 and res.json().get("status") == "ready"
+        except:
+            return False

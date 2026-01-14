@@ -13,3 +13,6 @@ class UploadService:
              return UploadStatus(success=False, message="File quá lớn (>50MB)", filename=file.name)
 
         return self.api.upload_pdf(file.name, file.getvalue())
+
+    def is_service_ready(self) -> bool:
+        return self.api.check_health()

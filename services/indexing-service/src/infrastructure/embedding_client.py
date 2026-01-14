@@ -6,7 +6,6 @@ logger = logging.getLogger(__name__)
 
 class EmbeddingClient:
     # 1. Đổi tên tham số từ api_url thành base_url để khớp với main.py
-    # 2. Bỏ os.getenv ở đây, vì main.py đã lo việc đó rồi
     def __init__(self, base_url: str):
         self.base_url = base_url
 
@@ -28,24 +27,31 @@ class EmbeddingClient:
             return []
 
     def get_embeddings_batch(self, texts: list[str]) -> list[list[float]]:
-        """Gọi API batch để lấy nhiều vector cùng lúc"""
-        try:
-            # Endpoint giả định là /embed/batch (cần cấu hình URL phù hợp, 
-            # hoặc tự động detect nếu base_url kết thúc bằng /embed)
-            
-            # Xử lý URL: chuyển http://.../embed -> http://.../embed/batch
-            batch_url = self.base_url.rstrip("/") + "/batch"
-            
-            response = requests.post(
-                batch_url, 
-                json={"texts": texts},
-                timeout=60 # Batch lâu hơn đơn lẻ nên tăng timeout
-            )
-            response.raise_for_status()
-            
-            data = response.json()
-            return data.get("embeddings", [])
-            
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Error calling Batch Embedding API: {e}")
+        """Gọi API batch theo từng cụm nhỏ để tránh block service quá lâu"""
+        if not texts:
             return []
+            
+        all_embeddings = []
+        batch_size = 32 # Chia nhỏ batch để interleaving với các request khác (như từ Chat)
+        
+        # Xử lý URL: chuyển http://.../embed -> http://.../embed/batch
+        batch_url = self.base_url.rstrip("/") + "/batch"
+        
+        for i in range(0, len(texts), batch_size):
+            current_batch = texts[i : i + batch_size]
+            try:
+                # logger.info(f"Sending sub-batch {i//batch_size + 1} ({len(current_batch)} texts)")
+                response = requests.post(
+                    batch_url, 
+                    json={"texts": current_batch},
+                    timeout=60
+                )
+                response.raise_for_status()
+                data = response.json()
+                all_embeddings.extend(data.get("embeddings", []))
+            except Exception as e:
+                logger.error(f"Error calling Sub-Batch Embedding API: {e}")
+                # Pipeline chính mong muốn độ dài khớp, nên tốt nhất là raise
+                raise e
+                
+        return all_embeddings

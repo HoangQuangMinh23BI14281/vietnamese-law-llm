@@ -8,12 +8,19 @@ def render_chat_view(service: ChatService):
         st.session_state.messages = []
 
     chat_container = st.container()
+    
+    is_ready = service.is_service_ready()
+    if not is_ready:
+        st.info("Hệ thống đang tải mô hình ngôn ngữ (Qwen)... Ô chat sẽ khả dụng khi tải xong.")
+        if st.button("Kiểm tra lại"):
+            st.rerun()
+
     with chat_container:
         for msg in st.session_state.messages:
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
 
-    if prompt := st.chat_input("Nhập câu hỏi pháp lý của bạn..."):
+    if prompt := st.chat_input("Nhập câu hỏi pháp lý của bạn...", disabled=not is_ready):
         
         with chat_container:
             with st.chat_message("user"):

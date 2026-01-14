@@ -8,10 +8,23 @@ def render_upload_view(service: UploadService):
     
     file = st.file_uploader("Chọn file PDF văn bản luật", type=['pdf'])
     
+    is_ready = service.is_service_ready()
+    
+    if not is_ready:
+        st.warning("Đang kiểm tra trạng thái hệ thống (Embedding Model)... Vui lòng đợi.")
+        # Dùng st.empty để tạo placeholder refresh nếu cần, nhưng Streamlit mặc định refresh khi user tương tác
+        if st.button("Kiểm tra lại"):
+            st.rerun()
+    
     if file is not None:
         col1, col2 = st.columns([1, 4])
         with col1:
-            start_btn = st.button("Bắt đầu Xử lý", type="primary", use_container_width=True)
+            start_btn = st.button(
+                "Bắt đầu Xử lý", 
+                type="primary", 
+                use_container_width=True,
+                disabled=not is_ready
+            )
             
         if start_btn:
             start_time = time.time()

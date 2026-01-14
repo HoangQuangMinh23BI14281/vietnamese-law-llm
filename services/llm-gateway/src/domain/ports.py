@@ -20,3 +20,8 @@ class LLMPort(ABC):
     def generate_answer(self, system_prompt: str, user_prompt: str) -> str:
         pass
 
+    @property
+    @abstractmethod
+    def is_ready(self) -> bool:
+        pass
+
