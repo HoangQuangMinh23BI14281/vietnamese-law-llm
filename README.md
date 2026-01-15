@@ -19,36 +19,40 @@ The platform is microservices-based, following **Clean Architecture** principles
 
 ```mermaid
 graph TD
+    %% Canvas Styling
+    classDef default fill:#fff,stroke:#333,stroke-width:1px;
+    classDef cluster fill:#f9f9f9,stroke:#999,stroke-width:1px;
+
     User([User])
-    
-    subgraph "Frontend Layer"
-        UI[Streamlit Web App]
-    end
-    
-    subgraph "Application Layer"
-        Gateway[LLM Gateway / Orchestrator]
-        Indexer[Indexing Service]
-    end
-    
-    subgraph "Infrastructure Layer"
-        Weaviate[(Weaviate Vector DB)]
-        Embed[Embedding API]
-        LocalLLM[Local LLM (Qwen)]
+
+    subgraph Presentation [Presentation Layer]
+        UI[Frontend Service]
     end
 
-    User <-->|HTTP/WebSocket| UI
-    
-    %% Query Flow
-    UI -->|POST /chat| Gateway
-    Gateway -->|Get Vector| Embed
-    Gateway -->|Search| Weaviate
-    Gateway -->|Generate| LocalLLM
-    
-    %% Indexing Flow
-    UI -->|POST /upload| Indexer
-    Indexer -->|Parse PDF| Indexer
-    Indexer -->|Get Vector| Embed
-    Indexer -->|Store| Weaviate
+    subgraph Logic [Logic Layer]
+        Gateway[LLM Gateway]
+        Indexer[Indexing Service]
+    end
+
+    subgraph Data [Data & Models Layer]
+        LocalLLM[Local LLM]
+        Weaviate[(Weaviate DB)]
+        Embed[Embedding API]
+    end
+
+    %% Main Flow
+    User --> UI
+    UI --> Gateway
+    UI --> Indexer
+
+    %% Gateway Connections (Left side flow)
+    Gateway --> LocalLLM
+    Gateway --> Weaviate
+    Gateway --> Embed
+
+    %% Indexer Connections (Right side flow)
+    Indexer --> Weaviate
+    Indexer --> Embed
 ```
 
 ### 2.2. Service Communication

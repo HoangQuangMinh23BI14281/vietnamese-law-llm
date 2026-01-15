@@ -7,8 +7,6 @@ import logging
 # Cấu hình log
 logging.basicConfig(level=logging.INFO)
 
-# 1. KHỞI TẠO INFRASTRUCTURE (Load Model - tốn thời gian nhất nên làm 1 lần ở đây)
-# Singleton instance
 embedding_service = HuggingFaceEmbeddingAdapter()
 
 # 2. KHỞI TẠO USE CASES
